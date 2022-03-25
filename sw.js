@@ -1,56 +1,52 @@
-
-console.log('Script loaded!')
-var cacheStorageKey = 'minimal-pwa-8'
-
-var cacheList = [
-  '/',
-  "index.html",
-  "main.css",
-  "e.png",
-  "pwa-fonts.png"
+var GHPATH = '/github-page-pwa';
+var APP_PREFIX = 'gppwa_';
+var VERSION = 'version_002';
+var URLS = [    
+  `${GHPATH}/`,
+  `${GHPATH}/index.html`,
+  `${GHPATH}/css/styles.css`,
+  `${GHPATH}/img/icon.png`,
+  `${GHPATH}/js/app.js`
 ]
 
-self.addEventListener('install', function(e) {
-  console.log('Cache event!')
-  e.waitUntil(
-    caches.open(cacheStorageKey).then(function(cache) {
-      console.log('Adding to Cache:', cacheList)
-      return cache.addAll(cacheList)
-    }).then(function() {
-      console.log('Skip waiting!')
-      return self.skipWaiting()
-    })
-  )
-})
-
-self.addEventListener('activate', function(e) {
-  console.log('Activate event')
-  e.waitUntil(
-    Promise.all(
-      caches.keys().then(cacheNames => {
-        return cacheNames.map(name => {
-          if (name !== cacheStorageKey) {
-            return caches.delete(name)
-          }
-        })
-      })
-    ).then(() => {
-      console.log('Clients claims.')
-      return self.clients.claim()
-    })
-  )
-})
-
-self.addEventListener('fetch', function(e) {
-  // console.log('Fetch event:', e.request.url)
+var CACHE_NAME = APP_PREFIX + VERSION
+self.addEventListener('fetch', function (e) {
+  console.log('Fetch request : ' + e.request.url);
   e.respondWith(
-    caches.match(e.request).then(function(response) {
-      if (response != null) {
-        console.log('Using cache for:', e.request.url)
-        return response
+    caches.match(e.request).then(function (request) {
+      if (request) { 
+        console.log('Responding with cache : ' + e.request.url);
+        return request
+      } else {       
+        console.log('File is not cached, fetching : ' + e.request.url);
+        return fetch(e.request)
       }
-      console.log('Fallback to fetch:', e.request.url)
-      return fetch(e.request.url)
+    })
+  )
+})
+
+self.addEventListener('install', function (e) {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then(function (cache) {
+      console.log('Installing cache : ' + CACHE_NAME);
+      return cache.addAll(URLS)
+    })
+  )
+})
+
+self.addEventListener('activate', function (e) {
+  e.waitUntil(
+    caches.keys().then(function (keyList) {
+      var cacheWhitelist = keyList.filter(function (key) {
+        return key.indexOf(APP_PREFIX)
+      })
+      cacheWhitelist.push(CACHE_NAME);
+      return Promise.all(keyList.map(function (key, i) {
+        if (cacheWhitelist.indexOf(key) === -1) {
+          console.log('Deleting cache : ' + keyList[i] );
+          return caches.delete(keyList[i])
+        }
+      }))
     })
   )
 })
